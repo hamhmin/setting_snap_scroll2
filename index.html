@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>무한 시간 선택기</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            /* 모든 요소에 box-sizing 적용 */
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            background-color: #f0f0f0;
+            align-items: center;
+        }
+
+        .container {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 50%;
+            height: 100vh;
+            position: relative;
+        }
+
+        .container::before {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 80%;
+            height: 40px;
+            border-radius: 12px;
+            background-color: #fff;
+            transform: translate(-50%, -50%);
+            z-index: 22;
+            mix-blend-mode: difference;
+            pointer-events: none;
+        }
+
+        .time-picker {
+            width: 100%;
+            height: calc(40px * 15);
+            overflow-y: scroll;
+            border: 2px solid #323232;
+            border-radius: 10px;
+            background-color: white;
+            overflow-y: scroll;
+            scroll-snap-type: y mandatory;
+        }
+
+        .scroll-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        .time-option {
+            height: 40px;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 16px;
+            border-bottom: 1px solid #e0e0e0;
+            transition: background-color 0.3s;
+            scroll-snap-align: start;
+        }
+
+        .time-option:hover {
+            background-color: #e0e0e0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="time-picker" id="timePicker">
+            <div class="scroll-container" id="scrollContainer"></div>
+        </div>
+    </div>
+    <script>
+        const scrollContainer = document.getElementById('scrollContainer');
+        const timePicker = document.getElementById('timePicker');
+        // const hours = [23, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]; // 23시부터 24시, 1시부터 22시까지
+        const hours = ["0시", "1시", "2시", "3시", "4시", "5시", "6시", "7시", "8시", "9시", "10시", "11시", "12시", "13시", "14시", "15시", "16시", "17시", "18시", "19시", "20시", "21시", "22시", "23시"]
+
+        const itemLength = hours.length;
+
+        let currentHourIndex = 0; // 시작 인덱스
+        let lastScrollTop = 0; // 마지막 스크롤 위치
+        let isScrolling = false; // 스크롤 상태를 추적하는 변수
+        let checkScrollInterval; // 스크롤 체크를 위한 인터벌
+        let checkScrollTopInterval;
+
+        // 시간 옵션 추가 함수
+        function addTimeOptions(count, atTop = false) {
+            const scrollHeightBefore = scrollContainer.scrollHeight; // 추가 전 스크롤 높이
+
+            for (let i = 0; i < count; i++) {
+                const option = document.createElement('div');
+                option.className = 'time-option';
+                option.textContent = hours[currentHourIndex];
+                option.addEventListener('click', () => {
+                    alert(`선택한 시간: ${option.textContent}시`);
+                });
+
+                if (atTop) {
+                    scrollContainer.insertBefore(option, scrollContainer[i]); // 위에 추가
+                } else {
+                    scrollContainer.appendChild(option); // 아래에 추가
+                }
+
+                currentHourIndex++;
+                if (currentHourIndex >= hours.length) {
+                    currentHourIndex = 0; // 인덱스가 배열 길이를 초과하면 0으로 리셋
+                }
+            }
+
+            // 추가 후 스크롤 위치 조정
+            if (atTop) {
+                const scrollHeightAfter = scrollContainer.scrollHeight; // 추가 후 스크롤 높이
+                timePicker.scrollTop += (scrollHeightAfter - scrollHeightBefore); // 스크롤 위치 유지
+            }
+        }
+
+        // 초기 시간 옵션 추가
+        addTimeOptions(itemLength * 6); // 초기 n개 시간 옵션 하단에 추가
+        addTimeOptions(itemLength * 6, true); // 초기 n개 시간 옵션 상단에 추가
+
+        // 스크롤 이벤트 리스너
+        timePicker.addEventListener('scroll', () => {
+            // 아래로 스크롤할 때
+            if (timePicker.scrollTop + timePicker.clientHeight + 100 >= scrollContainer.clientHeight) {
+                addTimeOptions(itemLength); // 스크롤이 끝에 도달하면 n개 추가
+            }
+            // 위로 스크롤할 때
+            if (timePicker.scrollTop === 0) {
+                addTimeOptions(itemLength, true); // 스크롤이 최상단에 도달하면 n개 추가
+            }
+            clearInterval(checkScrollTopInterval);
+            checkScrollTopInterval = setInterval(() => {
+                lastScrollTop = timePicker.scrollTop;
+            }, 100)
+        });
+
+        timePicker.addEventListener('touchend', () => {
+            isScrolling = true; // 스크롤 중임을 표시
+            // 이전 인터벌 클리어
+            clearInterval(checkScrollInterval);
+            // 스크롤 체크 인터벌 설정
+            checkScrollInterval = setInterval(() => {
+                // console.log(lastScrollTop, " : ", timePicker.scrollTop)
+                if (lastScrollTop === timePicker.scrollTop) {
+                    // 스크롤 위치가 변하지 않으면 멈춘 것으로 간주
+                    console.log('스크롤이 멈췄습니다.');
+                    clearInterval(checkScrollInterval); // 인터벌 클리어
+
+                    // 스크롤 멈췄을때 이벤트. 
+                    const closestOption = findClosestOption(); // 가장 중앙에 가까운 옵션 찾기
+                    if (closestOption) {
+                        // css snap-scroll이 더 자연스러워 css로 적용하는것으로 변경
+                        // scrollToCenter(closestOption); // 선택된 옵션을 중앙으로 스크롤
+
+
+                        //스크롤 위치에 따라 엘리먼트 생성
+                        // console.log(timePicker.scrollTop, " : ", timePicker.clientHeight, " : ", scrollContainer.clientHeight)
+                        if (timePicker.scrollTop + timePicker.clientHeight * 3 >= scrollContainer.clientHeight) {
+                            addTimeOptions(itemLength * 4); // 스크롤이 끝에 도달하면 n개 추가
+                        }
+                        if (timePicker.scrollTop < itemLength * 40 * 4) {
+                            addTimeOptions(itemLength * 4, true); // 스크롤이 최상단에 도달하면 n개 추가
+                        }
+
+                    }
+                } else {
+                    console.log('스크롤 진행중');
+                }
+            }, 1); // 100ms마다 체크
+        })
+        // 현재 중앙에 가장 가까운 옵션 찾기
+        function findClosestOption() {
+            const options = Array.from(scrollContainer.children);
+            const pickerRect = timePicker.getBoundingClientRect();
+            const pickerCenter = pickerRect.top + pickerRect.height / 2;
+
+            let closestOption = null;
+            let closestDistance = Infinity;
+            let lastTime = new Date().getTime();
+            options.forEach(option => {
+                const optionRect = option.getBoundingClientRect();
+                const optionCenter = optionRect.top + optionRect.height / 2;
+                const distance = Math.abs(optionCenter - pickerCenter);
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                    closestOption = option;
+                }
+            });
+            let currentTime = new Date().getTime();
+            // console.log("Time : ", currentTime, lastTime)
+            return closestOption;
+        }
+
+        // css snap-scroll이 더 자연스러워 css로 적용하는것으로 변경
+        // function scrollToCenter(option) {
+        //     const optionRect = option.getBoundingClientRect();
+        //     const pickerRect = timePicker.getBoundingClientRect();
+        //     const optionOffset = optionRect.top - pickerRect.top + timePicker.scrollTop; // 아이템의 현재 위치
+        //     const pickerHeight = pickerRect.height; // 선택기 높이
+        //     const scrollToPosition = optionOffset - (pickerHeight / 2) + (optionRect.height / 2); // 중앙으로 이동할 위치
+
+        //     // 애니메이션 실행
+        //     $(timePicker).animate({ scrollTop: scrollToPosition }, 100);
+        // }
+
+    </script>
+</body>
+
+</html>
